@@ -8,6 +8,13 @@
       (slurp file)
       (throw (Exception. "File does not exist!")))))
 
+(defn split-at-dialogue [story]
+  (.split story " (?=\")|(?<=[\\.?!]\") "))
+
 (defn -main
   [& args]
-  (prn (get-file-text (first args))))
+  (prn (-> (first args)
+           get-file-text
+           split-at-dialogue
+           seq ; Convert Java array to printable format.
+           )))
