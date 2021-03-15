@@ -1,6 +1,5 @@
 (ns capr-nvnc.parse
   (:require [clojure.java.io :as io]
-            [clojure.pprint :refer [pprint]]
             [clojure.string :as string])
   (:import [java.io PushbackReader])
   (:gen-class))
@@ -141,9 +140,8 @@
       :else
       (recur (conj blocks (parse-sentence! rdr)) (peek-char rdr)))))
 
-(defn -main
-  [& args]
-  (-> (io/reader (first args))
-    PushbackReader.
-    parse
-    pprint))
+(defn parse-story
+  [file-path]
+  (-> (io/reader file-path)
+      PushbackReader.
+      parse))
