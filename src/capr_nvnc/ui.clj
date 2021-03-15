@@ -15,6 +15,9 @@
          :curr-text nil
          :story nil}))
 
+;; Set native-like style *before* creating ui widgets.
+(ui/native!)
+
 (def ^:private imagebox
   (let [width (:width @*state)
         height (* (:height @*state) (:split-ratio @*state))]
@@ -68,7 +71,6 @@
       (.drawImage g image left top nil))))
 
 (defn init-ui []
-  (ui/native!)
   (ui/config! imagebox :paint paint)
   (ui/show! frame)
   (.revalidate frame))
