@@ -39,7 +39,8 @@
               :block-data block-data})))
 
 (defn unread-char! [rdr char]
-  (.unread rdr (int char)))
+  (when char ; Ensure we do not try to unread a null char.
+    (.unread rdr (int char))))
 
 (defn read-char! [rdr]
   (let [curr-char (.read rdr)]
