@@ -1,4 +1,4 @@
-(ns capr-nvnc.core
+(ns capr-nvnc.parse
   (:require [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]
             [clojure.string :as string])
