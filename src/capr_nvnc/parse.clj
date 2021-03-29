@@ -1,6 +1,8 @@
 (ns capr-nvnc.parse
   (:require [clojure.java.io :as io]
-            [clojure.string :as string])
+            [clojure.string :as string]
+            [clojure.zip :as zip]
+            [opennlp.nlp :as nlp])
   (:import [java.io PushbackReader])
   (:gen-class))
 
@@ -28,11 +30,11 @@
     :dialogue
     {:type :dialogue
      :speaker ""
-     :text (:text block-data)}
+     :text (.replaceAll (:text block-data) "\\s+" " ")}
 
     :narration
     {:type :narration
-     :text (:text block-data)}
+     :text (.replaceAll (:text block-data) "\\s+" " ")}
     
     (ex-info (str "Unsupported block type: " type)
              {:block-type type
@@ -140,6 +142,70 @@
       
       :else
       (recur (conj blocks (parse-sentence! rdr)) (peek-char rdr)))))
+
+;; ===== NLP Stuff ===== ;;
+;; This stuff is [WIP]
+;; Really needs to be cleaned up.
+
+(def tokenize (nlp/make-tokenizer "resources/en-token.bin"))
+
+(def name-find (nlp/make-name-finder "resources/en-ner-person.bin"))
+
+(defn get-neighbour-text [loc]
+  (let [left (zip/left loc)
+        right (zip/right loc)]
+    (->> (vector (when left (zip/node left))
+                 (when right (zip/node right)))
+         (mapv #(if (and (some? %) (= :narration (:type %)))
+                  (:text %)
+                  nil)))))
+
+(defn find-speaker [[left-text right-text :as neighbour-text]]
+  (let [left-names (when left-text (name-find (tokenize left-text)))
+        right-names (when right-text (name-find (tokenize right-text)))
+        left-index (or (when (and left-text (seq left-names))
+                         (.lastIndexOf left-text (last left-names)))
+                        0)
+        right-index (or (when (and right-text (seq right-names))
+                          (.indexOf right-text (first right-names)))
+                        9999)]
+    (cond
+      (every? nil? neighbour-text)
+      "" ; Leave the speaker empty to not deal with nils.
+
+      (nil? left-text)
+      (or (first right-names) "")
+
+      (nil? right-text)
+      (or (last left-names) "")
+
+      (< (- (count left-text) left-index)
+           right-index)
+      (or (last left-names) "")
+
+      :else
+      (or (first right-names) ""))))
+
+(defn set-speaker [loc]
+  (let [neighbour-text (get-neighbour-text loc)
+        speaker (find-speaker neighbour-text)]
+    (zip/edit loc assoc :speaker speaker)))
+
+(defn analyse [loc]
+  (if (seq (zip/rights loc))
+    (condp = (:type (zip/node loc))
+      :dialogue
+      (recur (zip/right (set-speaker loc)))
+
+      (recur (zip/right loc)))
+    (zip/root loc)))
+
+(defn analyse-story [story]
+  (-> (zip/vector-zip story)
+    zip/down
+    analyse))
+
+;; ===== Public Functions ===== ;;
 
 (defn parse-story
   [file-path]

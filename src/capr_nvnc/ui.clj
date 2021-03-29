@@ -72,11 +72,24 @@
 
 (defn parse-story [_]
   (let [file (chooser/choose-file :dir "./resources")
+        _ (ui/config! textbox :text "Loading...")
         file-path (.getAbsolutePath file)
         story (parse/parse-story file-path)]
     (ui/request-focus! textbox)
     (swap! *state assoc :story story
-                        :story-root (-> file .getAbsoluteFile .getParent))))
+                        :story-root (-> file .getAbsoluteFile .getParent))
+    (ui/config! textbox :text "Complete! Press <enter> to continue...")))
+
+(defn set-textbox-text [block]
+  (let [type (:type block)
+        text (:text block)]
+    (ui/config! textbox :text text)
+    (condp = type
+      :narration
+      (ui/config! textbox :foreground :white)
+
+      :dialogue
+      (ui/config! textbox :foreground :gold))))
 
 (defn advance-story [state]
   (let [story (:story state)
@@ -91,7 +104,7 @@
 
       (#{:narration :dialogue} (:type next-block))
       (do
-        (ui/config! textbox :text (:text next-block))
+        (set-textbox-text next-block)
         (assoc state :story (rest story))))))
 
 (defn init-ui []
@@ -104,6 +117,7 @@
   (ui/config! load-story :handler parse-story)
   (ui/listen textbox :key-pressed #(when (= (.getKeyCode %) KeyEvent/VK_ENTER)
                                      (swap! *state advance-story)))
+  (ui/pack! frame)
   (ui/show! frame)
   (.revalidate frame)
   (ui/request-focus! textbox))
